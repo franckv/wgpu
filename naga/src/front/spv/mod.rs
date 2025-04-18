@@ -82,6 +82,7 @@ pub const SUPPORTED_CAPABILITIES: &[spirv::Capability] = &[
     spirv::Capability::GroupNonUniformBallot,
     spirv::Capability::GroupNonUniformShuffle,
     spirv::Capability::GroupNonUniformShuffleRelative,
+    spirv::Capability::PhysicalStorageBufferAddresses,
     // tricky ones
     spirv::Capability::UniformBufferArrayDynamicIndexing,
     spirv::Capability::StorageBufferArrayDynamicIndexing,
@@ -92,6 +93,7 @@ pub const SUPPORTED_EXTENSIONS: &[&str] = &[
     "SPV_KHR_multiview",
     "SPV_EXT_shader_atomic_float_add",
     "SPV_KHR_16bit_storage",
+    "SPV_KHR_physical_storage_buffer",
 ];
 pub const SUPPORTED_EXT_SETS: &[&str] = &["GLSL.std.450"];
 
@@ -2185,9 +2187,13 @@ impl<I: Iterator<Item = u32>> Frontend<I> {
                     let result_type_id = self.next()?;
                     let result_id = self.next()?;
                     let pointer_id = self.next()?;
-                    if inst.wc != 4 {
-                        inst.expect(5)?;
+                    if inst.wc > 4 {
+                        inst.expect_at_least(5)?;
                         let _memory_access = self.next()?;
+                    }
+                    if inst.wc > 5 {
+                        inst.expect(6)?;
+                        let _memory_access2 = self.next()?;
                     }
 
                     let base_lexp = self.lookup_expression.lookup(pointer_id)?;
@@ -4641,6 +4647,7 @@ impl<I: Iterator<Item = u32>> Frontend<I> {
                 Op::TypeMatrix => self.parse_type_matrix(inst, &mut module),
                 Op::TypeFunction => self.parse_type_function(inst),
                 Op::TypePointer => self.parse_type_pointer(inst, &mut module),
+                Op::TypeForwardPointer => self.parse_type_forward_pointer(inst, &mut module),
                 Op::TypeArray => self.parse_type_array(inst, &mut module),
                 Op::TypeRuntimeArray => self.parse_type_runtime_array(inst, &mut module),
                 Op::TypeStruct => self.parse_type_struct(inst, &mut module),
@@ -5136,6 +5143,47 @@ impl<I: Iterator<Item = u32>> Frontend<I> {
         Ok(())
     }
 
+    fn parse_type_forward_pointer(
+        &mut self,
+        inst: Instruction,
+        module: &mut crate::Module,
+    ) -> Result<(), Error> {
+        // https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html#OpTypeForwardPointer
+        // Declare the storage class for a forward reference to a pointer.
+        //
+        // Pointer Type is a forward reference to the result of an OpTypePointer.
+        // That OpTypePointer instruction must declare Pointer Type to be a pointer to an OpTypeStruct. Any consumption of Pointer Type before its OpTypePointer declaration must be a type-declaration instruction.
+        // Storage Class is the Storage Class of the memory holding the object pointed to.
+
+        let start = self.data_offset;
+        self.switch(ModuleState::Type, inst.op)?;
+        inst.expect(3)?;
+        let id = self.next()?;
+        let storage_class = self.next()?;
+
+        let decor = self.future_decor.remove(&id);
+
+        let space = match map_storage_class(storage_class)? {
+            ExtendedClass::Global(space) => space,
+            ExtendedClass::Input | ExtendedClass::Output => crate::AddressSpace::Private,
+        };
+
+        let lookup_ty = LookupType {
+            handle: module.types.insert(
+                crate::Type {
+                    name: decor.and_then(|dec| dec.name),
+                    inner: crate::TypeInner::ForwardPointer { space },
+                },
+                self.span_from_with_op(start),
+            ),
+            base_id: Some(id),
+        };
+
+        self.lookup_type.insert(id, lookup_ty);
+
+        Ok(())
+    }
+
     fn parse_type_pointer(
         &mut self,
         inst: Instruction,
@@ -5187,6 +5235,22 @@ impl<I: Iterator<Item = u32>> Frontend<I> {
         // Don't bother with pointer stuff for `Handle` types.
         let lookup_ty = if space == crate::AddressSpace::Handle {
             base_lookup_ty.clone()
+        } else if let Ok(lookup_type) = self.lookup_type.lookup(id) {
+            module.types.replace(
+                lookup_type.handle,
+                crate::Type {
+                    name: decor.and_then(|dec| dec.name),
+                    inner: crate::TypeInner::Pointer {
+                        base: base_lookup_ty.handle,
+                        space,
+                    },
+                },
+            );
+
+            LookupType {
+                handle: lookup_type.handle,
+                base_id: Some(type_id),
+            }
         } else {
             LookupType {
                 handle: module.types.insert(
@@ -5202,6 +5266,7 @@ impl<I: Iterator<Item = u32>> Frontend<I> {
                 base_id: Some(type_id),
             }
         };
+
         self.lookup_type.insert(id, lookup_ty);
         Ok(())
     }

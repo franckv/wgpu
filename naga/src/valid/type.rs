@@ -217,7 +217,7 @@ fn check_member_layout(
 const fn ptr_space_argument_flag(space: crate::AddressSpace) -> TypeFlags {
     use crate::AddressSpace as As;
     match space {
-        As::Function | As::Private => TypeFlags::ARGUMENT,
+        As::Function | As::Private | As::PhysicalStorage { .. } => TypeFlags::ARGUMENT,
         As::Uniform | As::Storage { .. } | As::Handle | As::PushConstant | As::WorkGroup => {
             TypeFlags::empty()
         }
@@ -463,12 +463,38 @@ impl super::Validator {
                 if !base_info.flags.contains(TypeFlags::SIZED) {
                     match space {
                         As::Storage { .. } => {}
+                        As::PhysicalStorage { .. } => {}
                         _ => {
                             return Err(TypeError::InvalidPointerToUnsized { base, space });
                         }
                     }
                 }
 
+                // `Validator::validate_function` actually checks the address
+                // space of pointer arguments explicitly before checking the
+                // `ARGUMENT` flag, to give better error messages. But it seems
+                // best to set `ARGUMENT` accurately anyway.
+                let argument_flag = ptr_space_argument_flag(space);
+
+                // Pointers cannot be stored in variables, structure members, or
+                // array elements, so we do not mark them as `DATA`.
+                let data_flag = if let As::PhysicalStorage { .. } = space {
+                    self.require_type_capability(Capabilities::PHYSICAL_STORAGE_BUFFER_ADDRESSES)?;
+                    TypeFlags::DATA | TypeFlags::HOST_SHAREABLE
+                } else {
+                    TypeFlags::empty()
+                };
+
+                TypeInfo::new(
+                    argument_flag
+                        | data_flag
+                        | TypeFlags::SIZED
+                        | TypeFlags::COPY
+                        | TypeFlags::CREATION_RESOLVED,
+                    Alignment::ONE,
+                )
+            }
+            Ti::ForwardPointer { space } => {
                 // `Validator::validate_function` actually checks the address
                 // space of pointer arguments explicitly before checking the
                 // `ARGUMENT` flag, to give better error messages. But it seems
@@ -490,6 +516,8 @@ impl super::Validator {
                 scalar,
                 space,
             } => {
+                use crate::AddressSpace as As;
+
                 // ValuePointer should be treated the same way as the equivalent
                 // Pointer / Scalar / Vector combination, so each step in those
                 // variants' match arms should have a counterpart here.
@@ -507,8 +535,16 @@ impl super::Validator {
 
                 // Pointers cannot be stored in variables, structure members, or
                 // array elements, so we do not mark them as `DATA`.
+                let data_flag = if let As::PhysicalStorage { .. } = space {
+                    self.require_type_capability(Capabilities::PHYSICAL_STORAGE_BUFFER_ADDRESSES)?;
+                    TypeFlags::DATA | TypeFlags::HOST_SHAREABLE
+                } else {
+                    TypeFlags::empty()
+                };
+
                 TypeInfo::new(
-                    argument_flag
+                    data_flag
+                        | argument_flag
                         | TypeFlags::SIZED
                         | TypeFlags::COPY
                         | TypeFlags::CREATION_RESOLVED,

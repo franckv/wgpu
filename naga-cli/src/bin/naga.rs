@@ -869,7 +869,6 @@ fn bulk_validate(args: Args, params: &Parameters) -> anyhow::Result<()> {
                 continue;
             }
         };
-
         let mut validator =
             naga::valid::Validator::new(params.validation_flags, naga::valid::Capabilities::all());
         validator.subgroup_stages(naga::valid::ShaderStages::all());

@@ -18,6 +18,7 @@ impl TypeTracer<'_> {
             | Ti::Matrix { .. }
             | Ti::Atomic { .. }
             | Ti::ValuePointer { .. }
+            | Ti::ForwardPointer { .. }
             | Ti::Image { .. }
             | Ti::Sampler { .. }
             | Ti::AccelerationStructure { .. }
@@ -68,6 +69,7 @@ impl ModuleMap {
             | Ti::Matrix { .. }
             | Ti::Atomic(_)
             | Ti::ValuePointer { .. }
+            | Ti::ForwardPointer { .. }
             | Ti::Image { .. }
             | Ti::Sampler { .. }
             | Ti::AccelerationStructure { .. }

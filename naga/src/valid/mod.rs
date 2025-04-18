@@ -165,6 +165,8 @@ bitflags::bitflags! {
         const RAY_HIT_VERTEX_POSITION = 1 << 25;
         /// Support for 16-bit floating-point types.
         const SHADER_FLOAT16 = 1 << 26;
+        // Support for Buffer Device Addresses
+        const PHYSICAL_STORAGE_BUFFER_ADDRESSES = 1 << 27;
     }
 }
 
@@ -413,6 +415,7 @@ impl crate::TypeInner {
             }
             | Self::Atomic { .. }
             | Self::Pointer { .. }
+            | Self::ForwardPointer { .. }
             | Self::ValuePointer { .. }
             | Self::Struct { .. } => true,
             Self::Array { .. }
@@ -644,6 +647,7 @@ impl Validator {
                     }
                     .with_span_handle(handle, &module.types)
                 })?;
+            log::info!("{:?}, {:?}, {:?}", handle, ty, ty_info);
             mod_info.type_flags.push(ty_info.flags);
             self.types[handle.index()] = ty_info;
         }

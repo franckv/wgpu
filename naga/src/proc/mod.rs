@@ -175,6 +175,7 @@ impl super::AddressSpace {
             | crate::AddressSpace::WorkGroup => Sa::LOAD | Sa::STORE,
             crate::AddressSpace::Uniform => Sa::LOAD,
             crate::AddressSpace::Storage { access } => access,
+            crate::AddressSpace::PhysicalStorage { access, .. } => access,
             crate::AddressSpace::Handle => Sa::LOAD,
             crate::AddressSpace::PushConstant => Sa::LOAD,
         }

@@ -55,6 +55,7 @@ bitflags::bitflags! {
         const SUBGROUP_OPERATIONS = 1 << 24;
         /// Image atomics
         const TEXTURE_ATOMICS = 1 << 25;
+        const PHYSICAL_STORAGE_BUFFER_ADDRESSES = 1 << 26;
     }
 }
 
@@ -135,6 +136,7 @@ impl FeaturesManager {
         check_feature!(TEXTURE_LEVELS, 130);
         check_feature!(IMAGE_SIZE, 430, 310);
         check_feature!(TEXTURE_SHADOW_LOD, 200, 300);
+        check_feature!(PHYSICAL_STORAGE_BUFFER_ADDRESSES, 450, 320);
 
         // Return an error if there are missing features
         if missing.is_empty() {
@@ -287,6 +289,10 @@ impl FeaturesManager {
             writeln!(out, "#extension GL_OES_shader_image_atomic : require")?;
         }
 
+        if self.0.contains(Features::PHYSICAL_STORAGE_BUFFER_ADDRESSES) {
+            writeln!(out, "#extension GL_EXT_buffer_reference : require")?;
+        }
+
         Ok(())
     }
 }
@@ -421,6 +427,12 @@ impl<W> Writer<'_, W> {
                         | ImageClass::Depth { multi: false } => {}
                     }
                 }
+                TypeInner::Pointer {
+                    space: AddressSpace::PhysicalStorage { .. },
+                    ..
+                } => self
+                    .features
+                    .request(Features::PHYSICAL_STORAGE_BUFFER_ADDRESSES),
                 _ => {}
             }
         }

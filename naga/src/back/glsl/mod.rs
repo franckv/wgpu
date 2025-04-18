@@ -138,6 +138,7 @@ impl crate::AddressSpace {
             crate::AddressSpace::WorkGroup
             | crate::AddressSpace::Uniform
             | crate::AddressSpace::Storage { .. }
+            | crate::AddressSpace::PhysicalStorage { .. }
             | crate::AddressSpace::Handle
             | crate::AddressSpace::PushConstant => false,
         }
@@ -1095,6 +1096,7 @@ impl<'a, W: Write> Writer<'a, W> {
             // Write all variants instead of `_` so that if new variants are added a
             // no exhaustiveness error is thrown
             TypeInner::Pointer { .. }
+            | TypeInner::ForwardPointer { .. }
             | TypeInner::Struct { .. }
             | TypeInner::Image { .. }
             | TypeInner::Sampler { .. }
@@ -1251,6 +1253,7 @@ impl<'a, W: Write> Writer<'a, W> {
             crate::AddressSpace::Storage { .. } => {
                 self.write_interface_block(handle, global)?;
             }
+            crate::AddressSpace::PhysicalStorage { .. } => unreachable!(),
             // A global variable in the `Function` address space is a
             // contradiction in terms.
             crate::AddressSpace::Function => unreachable!(),
@@ -5007,6 +5010,12 @@ impl<'a, W: Write> Writer<'a, W> {
                 // Ensure ending padding is kept by rounding up to the alignment.
                 *offset = layout.alignment.round_up(*offset)
             }
+            TypeInner::Pointer {
+                space: crate::AddressSpace::PhysicalStorage { .. },
+                ..
+            } => {
+                log::info!("Push constant type pointer")
+            }
             _ => unreachable!(),
         }
     }
@@ -5127,6 +5136,7 @@ const fn glsl_storage_qualifier(space: crate::AddressSpace) -> Option<&'static s
         As::Function => None,
         As::Private => None,
         As::Storage { .. } => Some("buffer"),
+        As::PhysicalStorage { .. } => Some("buffer_reference"),
         As::Uniform => Some("uniform"),
         As::Handle => Some("uniform"),
         As::WorkGroup => Some("shared"),

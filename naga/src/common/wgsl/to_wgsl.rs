@@ -348,6 +348,7 @@ pub const fn address_space_str(
                     "storage"
                 }
             }
+            As::PhysicalStorage { .. } => unreachable!(),
             As::PushConstant => "push_constant",
             As::WorkGroup => "workgroup",
             As::Handle => return (None, None),

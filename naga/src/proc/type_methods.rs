@@ -98,6 +98,7 @@ impl crate::Scalar {
 }
 
 const POINTER_SPAN: u32 = 4;
+const BUFFER_POINTER_SPAN: u32 = 8;
 
 impl crate::TypeInner {
     /// Return the scalar type of `self`.
@@ -192,6 +193,8 @@ impl crate::TypeInner {
 
     /// Get the size of this type.
     pub fn size(&self, gctx: super::GlobalCtx) -> u32 {
+        use crate::AddressSpace as As;
+
         match *self {
             Self::Scalar(scalar) | Self::Atomic(scalar) => scalar.width as u32,
             Self::Vector { size, scalar } => size as u32 * scalar.width as u32,
@@ -201,7 +204,17 @@ impl crate::TypeInner {
                 rows,
                 scalar,
             } => super::Alignment::from(rows) * scalar.width as u32 * columns as u32,
-            Self::Pointer { .. } | Self::ValuePointer { .. } => POINTER_SPAN,
+            Self::Pointer {
+                space: As::PhysicalStorage { .. },
+                ..
+            }
+            | Self::ValuePointer {
+                space: As::PhysicalStorage { .. },
+                ..
+            } => BUFFER_POINTER_SPAN,
+            Self::Pointer { .. } | Self::ForwardPointer { .. } | Self::ValuePointer { .. } => {
+                POINTER_SPAN
+            }
             Self::Array {
                 base: _,
                 size,
@@ -344,6 +357,7 @@ impl crate::TypeInner {
             crate::TypeInner::Matrix { .. }
             | crate::TypeInner::Atomic(_)
             | crate::TypeInner::Pointer { .. }
+            | crate::TypeInner::ForwardPointer { .. }
             | crate::TypeInner::ValuePointer { .. }
             | crate::TypeInner::Array { .. }
             | crate::TypeInner::Struct { .. }
@@ -368,6 +382,7 @@ impl crate::TypeInner {
             crate::TypeInner::Array { base, .. } => types[base].inner.is_abstract(types),
             crate::TypeInner::ValuePointer { .. }
             | crate::TypeInner::Pointer { .. }
+            | crate::TypeInner::ForwardPointer { .. }
             | crate::TypeInner::Struct { .. }
             | crate::TypeInner::Image { .. }
             | crate::TypeInner::Sampler { .. }

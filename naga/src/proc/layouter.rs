@@ -165,6 +165,7 @@ impl Layouter {
     /// types.
     #[allow(clippy::or_fun_call)]
     pub fn update(&mut self, gctx: super::GlobalCtx) -> Result<(), LayoutError> {
+        use crate::AddressSpace as As;
         use crate::TypeInner as Ti;
 
         for (ty_handle, ty) in gctx.types.iter().skip(self.layouts.len()) {
@@ -198,10 +199,23 @@ impl Layouter {
                         alignment: Alignment::from(rows) * alignment,
                     }
                 }
-                Ti::Pointer { .. } | Ti::ValuePointer { .. } => TypeLayout {
+                Ti::Pointer {
+                    space: As::PhysicalStorage { .. },
+                    ..
+                }
+                | Ti::ValuePointer {
+                    space: As::PhysicalStorage { .. },
+                    ..
+                } => TypeLayout {
                     size,
-                    alignment: Alignment::ONE,
+                    alignment: Alignment::EIGHT,
                 },
+                Ti::Pointer { .. } | Ti::ForwardPointer { .. } | Ti::ValuePointer { .. } => {
+                    TypeLayout {
+                        size,
+                        alignment: Alignment::ONE,
+                    }
+                }
                 Ti::Array {
                     base,
                     stride: _,

@@ -313,7 +313,8 @@ impl super::Validator {
             | crate::TypeInner::Image { .. }
             | crate::TypeInner::Sampler { .. }
             | crate::TypeInner::AccelerationStructure { .. }
-            | crate::TypeInner::RayQuery { .. } => None,
+            | crate::TypeInner::RayQuery { .. }
+            | crate::TypeInner::ForwardPointer { .. } => None,
             crate::TypeInner::Pointer { base, space: _ } => {
                 handle.check_dep(base)?;
                 None

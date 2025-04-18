@@ -228,9 +228,33 @@ impl ParsingContext<'_> {
                             StorageQualifier::AddressSpace(AddressSpace::WorkGroup)
                         }
                         TokenValue::Buffer => {
-                            StorageQualifier::AddressSpace(AddressSpace::Storage {
-                                access: crate::StorageAccess::LOAD | crate::StorageAccess::STORE,
-                            })
+                            if qualifiers
+                                .none_layout_qualifier("buffer_reference", &mut frontend.errors)
+                            {
+                                let align = if let Some(align) = qualifiers.uint_layout_qualifier(
+                                    "buffer_reference_align",
+                                    &mut frontend.errors,
+                                ) {
+                                    align
+                                } else {
+                                    16
+                                };
+                                let access =
+                                    if let Some((access, _)) = qualifiers.storage_access.take() {
+                                        access
+                                    } else {
+                                        crate::StorageAccess::LOAD | crate::StorageAccess::STORE
+                                    };
+                                StorageQualifier::AddressSpace(AddressSpace::PhysicalStorage {
+                                    access,
+                                    align,
+                                })
+                            } else {
+                                StorageQualifier::AddressSpace(AddressSpace::Storage {
+                                    access: crate::StorageAccess::LOAD
+                                        | crate::StorageAccess::STORE,
+                                })
+                            }
                         }
                         _ => unreachable!(),
                     };

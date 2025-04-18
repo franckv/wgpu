@@ -5,7 +5,7 @@ Implementations for `BlockContext` methods.
 use alloc::vec::Vec;
 
 use arrayvec::ArrayVec;
-use spirv::Word;
+use spirv::{MemoryAccess, Word};
 
 use super::{
     index::BoundsCheckResult, selection::Selection, Block, BlockContext, Dimension, Error,
@@ -2394,6 +2394,15 @@ impl BlockContext<'_> {
                         }
                         _ => None,
                     };
+                let physical_space_align =
+                    match *self.fun_info[pointer].ty.inner_with(&self.ir_module.types) {
+                        crate::TypeInner::Pointer { base, space } => match space {
+                            crate::AddressSpace::PhysicalStorage { align, .. } => Some(align),
+                            _ => None,
+                        },
+                        _ => None,
+                    };
+
                 let instruction = if let Some(space) = atomic_space {
                     let (semantics, scope) = space.to_spirv_semantics_and_scope();
                     let scope_constant_id = self.get_scope_constant(scope as u32);
@@ -2404,6 +2413,14 @@ impl BlockContext<'_> {
                         pointer_id,
                         scope_constant_id,
                         semantics_id,
+                    )
+                } else if let Some(align) = physical_space_align {
+                    Instruction::load_aligned(
+                        result_type_id,
+                        id,
+                        pointer_id,
+                        Some(MemoryAccess::ALIGNED),
+                        align,
                     )
                 } else {
                     Instruction::load(result_type_id, id, pointer_id, None)

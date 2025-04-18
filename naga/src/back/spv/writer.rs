@@ -412,7 +412,8 @@ impl Writer {
             crate::TypeInner::RayQuery { .. } => LocalType::RayQuery,
             crate::TypeInner::Array { .. }
             | crate::TypeInner::Struct { .. }
-            | crate::TypeInner::BindingArray { .. } => return None,
+            | crate::TypeInner::BindingArray { .. }
+            | crate::TypeInner::ForwardPointer { .. } => return None,
         })
     }
 
@@ -1395,6 +1396,7 @@ impl Writer {
                 | crate::TypeInner::Vector { .. }
                 | crate::TypeInner::Matrix { .. }
                 | crate::TypeInner::Pointer { .. }
+                | crate::TypeInner::ForwardPointer { .. }
                 | crate::TypeInner::ValuePointer { .. }
                 | crate::TypeInner::Image { .. }
                 | crate::TypeInner::Sampler { .. }

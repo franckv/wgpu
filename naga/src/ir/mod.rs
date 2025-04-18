@@ -320,7 +320,13 @@ pub enum AddressSpace {
     /// Uniform buffer data.
     Uniform,
     /// Storage buffer data, potentially mutable.
-    Storage { access: StorageAccess },
+    Storage {
+        access: StorageAccess,
+    },
+    PhysicalStorage {
+        access: StorageAccess,
+        align: u32,
+    },
     /// Opaque handles, such as samplers and images.
     Handle,
     /// Push constants.
@@ -653,7 +659,10 @@ pub enum TypeInner {
     /// Number of integral or floating-point kind.
     Scalar(Scalar),
     /// Vector of numbers.
-    Vector { size: VectorSize, scalar: Scalar },
+    Vector {
+        size: VectorSize,
+        scalar: Scalar,
+    },
     /// Matrix of numbers.
     Matrix {
         columns: VectorSize,
@@ -692,6 +701,9 @@ pub enum TypeInner {
     /// [`compare_types`]: crate::proc::compare_types
     Pointer {
         base: Handle<Type>,
+        space: AddressSpace,
+    },
+    ForwardPointer {
         space: AddressSpace,
     },
 
@@ -778,13 +790,19 @@ pub enum TypeInner {
         class: ImageClass,
     },
     /// Can be used to sample values from images.
-    Sampler { comparison: bool },
+    Sampler {
+        comparison: bool,
+    },
 
     /// Opaque object representing an acceleration structure of geometry.
-    AccelerationStructure { vertex_return: bool },
+    AccelerationStructure {
+        vertex_return: bool,
+    },
 
     /// Locally used handle for ray queries.
-    RayQuery { vertex_return: bool },
+    RayQuery {
+        vertex_return: bool,
+    },
 
     /// Array of bindings.
     ///
@@ -825,7 +843,10 @@ pub enum TypeInner {
     /// [`DATA`]: crate::valid::TypeFlags::DATA
     /// [`ARGUMENT`]: crate::valid::TypeFlags::ARGUMENT
     /// [naga#1864]: https://github.com/gfx-rs/naga/issues/1864
-    BindingArray { base: Handle<Type>, size: ArraySize },
+    BindingArray {
+        base: Handle<Type>,
+        size: ArraySize,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]

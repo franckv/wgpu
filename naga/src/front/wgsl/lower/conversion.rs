@@ -353,6 +353,7 @@ impl crate::TypeInner {
             Ti::Array { base, .. } => types[base].inner.automatically_convertible_scalar(types),
             Ti::Atomic(_)
             | Ti::Pointer { .. }
+            | Ti::ForwardPointer { .. }
             | Ti::ValuePointer { .. }
             | Ti::Struct { .. }
             | Ti::Image { .. }
@@ -381,6 +382,7 @@ impl crate::TypeInner {
             }
             Ti::ValuePointer { scalar, .. } => Some(scalar),
             Ti::Struct { .. }
+            | Ti::ForwardPointer { .. }
             | Ti::Image { .. }
             | Ti::Sampler { .. }
             | Ti::AccelerationStructure { .. }

@@ -330,6 +330,22 @@ where
                 write!(out, ">")?;
             }
         }
+        TypeInner::ForwardPointer { space } => {
+            let (address, maybe_access) = address_space_str(space);
+            // Everything but `AddressSpace::Handle` gives us a `address` name, but
+            // Naga IR never produces pointers to handles, so it doesn't matter much
+            // how we write such a type. Just write it as the base type alone.
+            if let Some(space) = address {
+                write!(out, "ptr<{space}, ")?;
+            }
+            if address.is_some() {
+                if let Some(access) = maybe_access {
+                    write!(out, ", {access}")?;
+                }
+                write!(out, ">")?;
+            }
+        }
+
         TypeInner::ValuePointer {
             size: None,
             scalar,

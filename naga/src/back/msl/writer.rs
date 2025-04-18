@@ -199,6 +199,13 @@ impl Display for TypeContext<'_> {
                 rows,
                 scalar,
             } => put_numeric_type(out, scalar, &[rows, columns]),
+            crate::TypeInner::ForwardPointer { space } => {
+                let space_name = match space.to_msl_name() {
+                    Some(name) => name,
+                    None => return Ok(()),
+                };
+                write!(out, "{space_name}&")
+            }
             crate::TypeInner::Pointer { base, space } => {
                 let sub = Self {
                     handle: base,
@@ -542,6 +549,7 @@ impl crate::AddressSpace {
         match *self {
             Self::Uniform
             | Self::Storage { .. }
+            | Self::PhysicalStorage { .. }
             | Self::Private
             | Self::WorkGroup
             | Self::PushConstant
@@ -558,6 +566,7 @@ impl crate::AddressSpace {
             // may end up with "const" even if the binding is read-write,
             // and that should be OK.
             Self::Storage { .. } => true,
+            Self::PhysicalStorage { .. } => true,
             // These should always be read-write.
             Self::Private | Self::WorkGroup => false,
             // These translate to `constant` address space, no need for qualifiers.
@@ -572,6 +581,7 @@ impl crate::AddressSpace {
             Self::Handle => None,
             Self::Uniform | Self::PushConstant => Some("constant"),
             Self::Storage { .. } => Some("device"),
+            Self::PhysicalStorage { .. } => unreachable!(),
             Self::Private | Self::Function => Some("thread"),
             Self::WorkGroup => Some("threadgroup"),
         }
@@ -590,6 +600,7 @@ impl crate::Type {
             | Ti::Matrix { .. }
             | Ti::Atomic(_)
             | Ti::Pointer { .. }
+            | Ti::ForwardPointer { .. }
             | Ti::ValuePointer { .. } => self.name.is_some(),
             // composite types are better to be aliased, regardless of the name
             Ti::Struct { .. } | Ti::Array { .. } => true,
@@ -5986,6 +5997,7 @@ template <typename A>
                         crate::AddressSpace::Function
                         | crate::AddressSpace::Private
                         | crate::AddressSpace::WorkGroup => {}
+                        crate::AddressSpace::PhysicalStorage { .. } => unreachable!(),
                     }
                 }
                 if needs_buffer_sizes {

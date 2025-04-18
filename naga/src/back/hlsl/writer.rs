@@ -929,6 +929,7 @@ impl<'a, W: fmt::Write> super::Writer<'a, W> {
                 write!(self.out, "{prefix}ByteAddressBuffer")?;
                 register
             }
+            crate::AddressSpace::PhysicalStorage { .. } => unreachable!(),
             crate::AddressSpace::Handle => {
                 let register = match *handle_ty {
                     // all storage textures are UAV, unconditionally
@@ -2974,7 +2975,9 @@ impl<'a, W: fmt::Write> super::Writer<'a, W> {
                                 bind_target.restrict_indexing
                             }
                             Some(
-                                crate::AddressSpace::Handle | crate::AddressSpace::Storage { .. },
+                                crate::AddressSpace::Handle
+                                | crate::AddressSpace::Storage { .. }
+                                | crate::AddressSpace::PhysicalStorage { .. },
                             ) => unreachable!(),
                         };
                     // Decide whether this index needs to be clamped to fall within range.
